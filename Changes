@@ -1,0 +1,9 @@
+Revision history for Perl extension POE::Session::Multiplex.
+
+0.0400 Apr 11 2009
+    - Frist release to the CPAN
+
+0.01  Apr 6 2009
+	- original version; created by h2xs 1.23 with options
+		-A -n POE::Session::Multiplex --use-new-tests
+
