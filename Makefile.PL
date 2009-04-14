@@ -19,9 +19,10 @@ sub init_PM
     $self->SUPER::init_PM( @args );
 
     foreach my $file ( keys %{ $self->{PM} || {} } ) {
-        next unless $file =~ /^lib.+\.pm$/;
+        next if $file =~ /^lib.+\.pm$/;
         delete $self->{PM}{$file};
     }
+    warn join ', ', keys %{ $self->{PM} };
 }
 
 package main;

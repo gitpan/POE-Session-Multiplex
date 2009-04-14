@@ -19,7 +19,7 @@ our @EXPORT_OK = ( @{ $EXPORT_TAGS{'all'} } );
 
 our @EXPORT = qw( ev evo evs rsvp );
 
-our $VERSION = '0.0400';
+our $VERSION = '0.0401';
 our $CURRENTOBJ;
 
 our $START;
@@ -562,7 +562,7 @@ C<_child> can not be multiplexed.
 =head2 Object Names
 
 POE::Session::Multiplex requires each object to have a name.  If you
-do not supply one when registereing an object, the method
+do not supply one when registering an object, the method
 C<__name> is called to fetch the name.  This is a crude form of
 meta-object protocol.  If your object does not implement the
 C<__name> method, a name is generated from the stringised object
@@ -592,7 +592,7 @@ Please use the event helper functions provided.
 Creates a new multiplexed L<POE::Session>.  No new parameters are defined by
 POE::Session::Multiplex.  Parameters of interest to this module are
 C<package_states> and C<object_states>; they define event -> object method
-mapings that are also used by L<POE::Session::Multiplex>.  Objects
+mappings that are also used by L<POE::Session::Multiplex>.  Objects
 referenced in C<ojbect_states> are currently not multiplexed.
 
 =head2 object_register
@@ -614,10 +614,10 @@ The object to be registered with the session.  Required.
 
 =item name
 
-The name of the object being registered.  If omited,
+The name of the object being registered.  If omitted,
 L<object_register> will attempt to get an object name via a
 C<__name> method call.  If this method isn't available, a stringised
-object refrence is used.
+object reference is used.
 
 =item events
 
@@ -627,7 +627,7 @@ handler methods.
 
     events => { load => 'load_handler', save => 'save_handler }
 
-If you create POE events with an object, they are avaible to other
+If you create POE events with an object, they are available to other
 objects of the same class.  However, they will be removed when this
 object is unregistered.  If you do not want this, use
 L</package_register>.
@@ -668,7 +668,7 @@ Any POE events created when the object was registered are removed.
     $_[SESSION]->object( $name );
     $_[SESSION]->object( $self );
 
-Syntatic sugar for L</object_register> or L</object_unregister>.
+Syntactic sugar for L</object_register> or L</object_unregister>.
 
 
 
