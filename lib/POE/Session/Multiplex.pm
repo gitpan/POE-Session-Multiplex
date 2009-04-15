@@ -19,7 +19,7 @@ our @EXPORT_OK = ( @{ $EXPORT_TAGS{'all'} } );
 
 our @EXPORT = qw( ev evo evs rsvp );
 
-our $VERSION = '0.0401';
+our $VERSION = '0.0402';
 our $CURRENTOBJ;
 
 our $START;

@@ -1,5 +1,11 @@
 Revision history for Perl extension POE::Session::Multiplex.
 
+0.0402 Apr 15 2009
+    - CPAN testing tweak
+
+0.0401 Apr 14 2009
+    - CPAN testing tweak
+
 0.0400 Apr 11 2009
     - Frist release to the CPAN
 

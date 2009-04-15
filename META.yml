@@ -1,6 +1,6 @@
 --- #YAML:1.0
 name:                POE-Session-Multiplex
-version:             0.0401
+version:             0.0402
 abstract:            POE session with object multiplexing
 license:             perl
 generated_by:        ExtUtils::MakeMaker version 6.36

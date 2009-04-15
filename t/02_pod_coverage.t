@@ -11,7 +11,7 @@ plan tests => 1;
 pod_coverage_ok(
         "POE::Session::Multiplex",
         { also_private => [ 
-                    qr/^(OH|SE)_.+$/,
+                    qr/^(OH|SE|OPT|EN)_.+$/,
                     qr/^(handler_for|instantiate|set_objectre)$/
                 ], 
         },
