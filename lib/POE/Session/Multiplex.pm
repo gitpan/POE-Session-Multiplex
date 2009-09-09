@@ -1,6 +1,5 @@
 package POE::Session::Multiplex;
 
-use 5.008008;
 use strict;
 use warnings;
 
@@ -19,7 +18,7 @@ our @EXPORT_OK = ( @{ $EXPORT_TAGS{'all'} } );
 
 our @EXPORT = qw( ev evo evs rsvp );
 
-our $VERSION = '0.0402';
+our $VERSION = '0.0403';
 our $CURRENTOBJ;
 
 our $START;

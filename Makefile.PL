@@ -22,7 +22,7 @@ sub init_PM
         next if $file =~ /^lib.+\.pm$/;
         delete $self->{PM}{$file};
     }
-    warn join ', ', keys %{ $self->{PM} };
+    # warn join ', ', keys %{ $self->{PM} };
 }
 
 package main;
