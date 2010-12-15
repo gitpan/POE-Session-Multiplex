@@ -18,7 +18,7 @@ our @EXPORT_OK = ( @{ $EXPORT_TAGS{'all'} } );
 
 our @EXPORT = qw( ev evo evs rsvp );
 
-our $VERSION = '0.0403';
+our $VERSION = '0.0500';
 our $CURRENTOBJ;
 
 our $START;
@@ -210,6 +210,9 @@ sub set_objectre
 }
 
 #######################################
+# $obj_name  => name of object
+# $obj_state => clean state name
+# $state     => raw state name ($obj_name->$obj_state)
 sub handler_for
 {
     my( $self, $obj_name, $obj_state, $state ) = @_;
@@ -335,6 +338,12 @@ sub object_register
     }
     $hold->[OH_NAME]   = $obj_name;
     $hold->[OH_OBJECT] = $object;
+    
+    # greet the object
+    if( $self->_handler_for( $obj_name, "_psm_begin" ) ) {
+        $poe_kernel->call( $self, evo( $obj_name, "_psm_begin" ) );
+    }
+
     return 1;
 }
 
@@ -345,6 +354,10 @@ sub object_unregister
 
     if( blessed $obj_name ) {
         $obj_name = $self->_obj_name( $obj_name );
+    }
+    # say good bye the object
+    if( $self->_handler_for( $obj_name, "_psm_end" ) ) {
+        $poe_kernel->call( $self, evo( $obj_name, "_psm_end" ) );
     }
     my $def = delete $self->[SE_OBJECTS]->{ $obj_name };
     unless( $def ) {
@@ -453,8 +466,8 @@ POE::Session::Multiplex - POE session with object multiplexing
 
 =head1 DESCRIPTION
 
-POE::Session::Multiplex allows you to have multiple object handling
-event from a single L<POE::Session>.
+POE::Session::Multiplex allows you to have multiple objects handling
+events from a single L<POE::Session>.
 
 A standard POE design is to have one POE::Session per object and to
 address each object using session IDs or aliases. 
@@ -467,15 +480,32 @@ collection must continually verify that each session should still be
 alive.  For a system with many sessions this could represent a
 non-trivial task.
 
+
+=head2 Overview
+
+Each object has a name associated with it.  Events are addressed to the
+object by including the object's name in the event name.  When invoked
+POE::Session::Multiplex then seperates the object name from the event name
+and calls an event handler on the object.
+
+Objects are made available for multiplexing with L</object_register>.  They
+are removed with L</object_unregister>.
+
 POE::Session::Multiplex provides handy routines to do the event name
 manipulation. See L</HELPER FUNCTIONS>.
 
-To make an object available via multiplexing, that object must be
-registered with the session with L</object_register>.
+Event handlers for a class (aka package) must be defined before hand. This
+is done with either L</package_register> or L<POE::Session>'s
+package_states.
 
-Objects pass to the session via C<object_states> are currently not
-multiplexed, though their events are available to objects of the same
-class.  I<This could change in the future>.
+POE::Session::Multiplex keeps a reference to all objects.  This means that
+L<DESTROY> will not be called until you unregister the object.  It also
+means that you don't have to keep track of your objects.  See L</object_get>
+if you want to retrieve an object.
+
+Objects passed to the session via C<object_states> are currently not
+multiplexed, though their events are available to objects of the same class. 
+I<This could change in the future>.
 
 
 
@@ -497,13 +527,39 @@ For example, a session is created with the following.
                     # ...
                 );
 
-Objects of C<Class1> are only accessible via the C<load> and C<save>
-events and objects of C<Class2> are only accessible via C<marshall>
-and C<demarshall>, unless C<Class2> is a sub-class of C<Class1>.
+Objects of C<Class1> are only accessible via the C<load> and C<save> events
+and objects of C<Class2> are only accessible via C<marshall> and
+C<demarshall>.  Unless C<Class2> is a sub-class of C<Class1> in which case
+all 4 events are available.
 
 POE::Session::Multiplex does the same thing with C<object_states>. 
 L<UNIVERSAL::isa|UNIVERSAL/isa> is used to verify that 2 objects are
 of the same class.
+
+
+
+=head2 _start and _stop vs _psm_begin and _psm_end
+
+The C<_start> event is invoked directly by POE.  This means that no object
+will be associated with the event and that the helper functions will not
+work.  However, when an object is registered, its L</_psm_begin> handler is
+called and when it is unregistered, its L</_psm_end> handler is called.  The
+_start handler then becomes a place to register an alias, create and
+register one or more objects.  Furthur initialisation can happen in
+L</_psm_begin>.
+
+    sub _start {
+        my( $package, $session, @args ) = @_[OBJECT,SESSION,ARG0..$#_];
+        $poe_kernel->alias_set( 'multiplex' );
+        $session->object( main => $package->new( @args ) );
+    }
+
+    sub _psm_begin {
+        my( $self, @args ) = @_[OBJECT,ARG0..$#_];
+        $poe_kernel->sig( CHLD => ev"sig_CHLD" );
+        $poe_kernel->sig( INT  => ev"sig_INT" );
+        # ....
+    }
 
 
 
@@ -512,8 +568,45 @@ of the same class.
 When creating a socket factory, we use L</ev> to create an event name
 addressed to the current object:
 
+    package Example;
+    use strict;
+    use warnings;
+    use POE;
+    use POE::Session::Multiplex;
     use POE::Wheel::SocketFactory;
     
+    sub spawn {
+        my( $package, $params ) = @_;
+        POE::Session::Multiplex->create(
+                args => [ $params ],
+                package_states => [
+                    $package => [ qw( _start _psm_begin connected error ) ]
+                ] );
+    }
+
+    sub _start {
+        my( $package, $session, $params ) = @_[OBJECT,SESSION,ARG0];
+        # We can't call call open_connection(), because ev() won't
+        # have a current object.
+        # So we create an object
+        my $obj = $package->new( $params );
+        # And register it.
+        $session->object( listener => $obj );
+        # This will cause _psm_begin to be invoked
+    }
+
+    sub new {
+        my( $package, $params ) = @_;
+        return bless { params=>$params }, $package;
+    }
+
+    # we now have a 'current' object, so open_connection() may call ev() without
+    # worries
+    sub _psm_begin {
+        my( $self ) = @_;
+        $self->open_connection( $self->{params} );
+    }
+
     sub open_connection {
         my( $self, $params ) = @_[OBJECT, ARG0];
         $self->{wheel} = POE::Wheel::SocketFactory->new(
@@ -531,6 +624,7 @@ an event that is addressed tot he current object and session:
                      );
 
 C<$session>'s sum event handler would then be:
+
     sub sum_handler {
         my( $array, $reply ) = @_[ ARG0, ARG1 ];
         my $tot = 0;
@@ -554,9 +648,21 @@ This could also have been implemented as:
 
 =head2 Limits
 
-It is impossible to multiplex events that are
-sent from the POE kernel.  Specifically, C<_start>, C<_stop> and
-C<_child> can not be multiplexed.
+It is impossible to multiplex events that are sent from the POE kernel.
+Specifically, C<_start>, C<_stop>, C<_child> and C<_parent> can not be
+multiplexed.  Use L</_being> and L</_psm_end> or C<_start> and C<_stop>.  For
+C<_child> and C<_parent>, use a call to the right object:
+
+    sub _child {
+        my( $self, $session, @args ) = @_[OBJECT,SESSION,ARG0..$#_];
+        my $call = evo $self->{name}, "poe_child";
+        $poe_kernel->call( $session, $call, @args );
+    }
+
+    sub poe_child {
+        my( $self, $reason, $child, $retval ) = @_[OBJECT,ARG0,ARG1,ARG2];
+        # Do the work ...
+    }
 
 =head2 Object Names
 
@@ -581,6 +687,32 @@ very well change to C<< EVENT@NAME >> or anything else in the future.
 Please use the event helper functions provided.
 
 
+=head1 EVENTS
+
+POE::Session::Multiplex provides 2 object management events: C<_psm_begin>
+and C<_psm_end>.  They are invoked synchronously whenever an object is
+registered or unregistered.
+
+=head2 _psm_begin
+
+C<_psm_begin> is invoked when an object is registered.  This is roughly
+equivalent to POE's C<_start>.  Helper functions like L</ev> will have a
+default object to work with.
+
+=head2 _psm_end
+
+C<_psm_end> is invoked when an object is registered.  This is roughly
+equivalent to POE's C<_stop>.  However, there is no guarantee that
+C<_psm_end> will be called; if a session is destroyed before an object is
+unregistering C<_psm_end> won't be called.  If C<_psm_end> is necessary, 
+you must explicitly unregister the object:
+
+    sub _stop {
+        my $session = $_[SESSION];
+        foreach my $name ( $session->object_list ) {
+            $session->object_unregister( $name );
+        }
+    }
 
 =head1 METHODS
 
@@ -614,9 +746,12 @@ The object to be registered with the session.  Required.
 =item name
 
 The name of the object being registered.  If omitted,
-L<object_register> will attempt to get an object name via a
+L</object_register> will attempt to get an object name via a
 C<__name> method call.  If this method isn't available, a stringised
 object reference is used.
+
+If an object with the same name has already registered, that object is
+unregistered.
 
 =item events
 
@@ -633,6 +768,8 @@ L</package_register>.
 
 =back
 
+If defined, the L</_psm_begin> event handler is invoked when an object is
+registered.
 
 
 =head2 object_get
@@ -656,11 +793,12 @@ Returns a list of names of all the currently registered objects.
 Unregisters an object.  This makes the object unavailable for events. 
 Any POE events created when the object was registered are removed.
 
+If defined, the L</_psm_end> event handler is invoked.
 
 =head2 object
 
     # Register an object
-    $_[SESSION]->object( $name => $self, $events );
+    $_[SESSION]->object( $name => $self[, $events] );
     $_[SESSION]->object( $self, $events );
 
     # Unregister an object
@@ -682,12 +820,13 @@ class C<$package>.
 It is not currently possible to unregister a package.
 
 
+
+
+
 =head1 HELPER FUNCTIONS
 
 POE::Session::Multiplex exports a few helper functions for
-manipulating.
-
-
+manipulating the event names.
 
 =head2 ev
 
@@ -731,13 +870,13 @@ Returns an opaque object that may be used to post an event addressed
 to a I<handler> of the current object. Obviously may only be called
 from within a multiplexed event.
 
-C<rsvp> is used by object to create postbacks.  You may pass the returned
-object to other objects or sessions.  They reply with:
+C<rsvp> is used by objects to create postbacks.  You may pass the rsvp
+to other objects or sessions.  They reply with:
 
     $poe_kernel->post( @$rsvp, @answer );
 
-FYI, I<rsvp> is from the French I<Repondez, s'il vous plais>.  I<Answer,
-please> in English.
+FYI, I<rsvp> is from the French I<Repondez, s'il vous plais>.  That is,
+I<Answer, please> in English.
 
 
 
@@ -767,7 +906,7 @@ Then use that class to create your sessions:
 
 L<POE> and L<POE::Session> for details of POE.
 
-L<POE::Stage> for the final solution
+L<Reflex> for the final solution.
 
 
 
@@ -778,7 +917,7 @@ Philip Gwyn, E<lt>gwyn-at-cpan.orgE<gt>
 
 =head1 COPYRIGHT AND LICENSE
 
-Copyright (C) 2009 by Philip Gwyn
+Copyright (C) 2009,2010 by Philip Gwyn
 
 This library is free software; you can redistribute it and/or modify
 it under the same terms as Perl itself, either Perl version 5.8.8 or,

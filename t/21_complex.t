@@ -3,7 +3,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 18;
+use Test::More tests => 23;
 use POE;
 
 our @LIST = qw( She said yeah );
@@ -36,7 +36,8 @@ sub spawn
     POE::Session::Multiplex->create( 
                                 package_states => [
                                         $package => 
-                                            [ qw( _start _stop sing again )]
+                                            [ qw( _start _stop _psm_begin _psm_end
+                                                sing again )]
                                     ],
                                 heap => { other => $other }
                             );
@@ -55,12 +56,26 @@ sub _start
     $_[SESSION]->object( YEAH => $package->new( 'YEAH' ) ); 
 }
 
+sub _psm_begin
+{
+    my( $self ) = @_;
+    isa_ok( $self, __PACKAGE__ );
+}
+
 ############################################
 sub _stop
 {
     my( $package ) = @_;
     DEBUG and warn "_stop";
 }
+
+# Only one of the 'Three' packages gets unregistered
+sub _psm_end
+{
+    my( $self ) = @_;
+    isa_ok( $self, 'Three' );
+}
+
 
 ##############################################################
 sub new
@@ -120,6 +135,9 @@ sub more
     my( $self, $word, $rsvp ) = @_[ OBJECT, ARG0, ARG1 ];
     is_deeply( $rsvp, [ $_[SESSION]->ID, ev"more" ], 'evos' );
     isnt( $word, $self->{word}, "More: $word" );
+    if( $word eq 'yeah' ) {
+        $_[SESSION]->object( $self->{word} );
+    }
 }
 
 ##############################################################################
