@@ -1,6 +1,6 @@
 --- #YAML:1.0
 name:               POE-Session-Multiplex
-version:            0.0500
+version:            0.0501
 abstract:           POE session with object multiplexing
 author:
     - Philip Gwyn <gwyn-at-cpan.org>

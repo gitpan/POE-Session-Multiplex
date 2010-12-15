@@ -1,5 +1,11 @@
 Revision history for Perl extension POE::Session::Multiplex.
 
+0.0501 Dec 13 2010
+    - Forgot to update Changes
+
+0.0500 Dec 13 2010
+    - Added _psm_begin, _psm_end
+
 0.0403 Sep 9 2009
     - Remove use 5.008008.  Thank you Sébastien Aperghis-Tramoni.
 
