@@ -1,5 +1,8 @@
 Revision history for Perl extension POE::Session::Multiplex.
 
+0.0600 May 18 2011
+    - Fixed for POE 1.311
+
 0.0501 Dec 13 2010
     - Forgot to update Changes
 

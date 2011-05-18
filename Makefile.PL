@@ -32,7 +32,7 @@ WriteMakefile(
     PREREQ_PM         => {
             'POE'           => 1,
             'Scalar::Util'  => 0,
-            'Devel::Size'   => 0
+#            'Devel::Size'   => 0
         }, 
     ($] >= 5.005 ? 
       (ABSTRACT_FROM  => 'lib/POE/Session/Multiplex.pm',

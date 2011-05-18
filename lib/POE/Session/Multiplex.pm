@@ -18,16 +18,34 @@ our @EXPORT_OK = ( @{ $EXPORT_TAGS{'all'} } );
 
 our @EXPORT = qw( ev evo evs rsvp );
 
-our $VERSION = '0.0501';
+our $VERSION = '0.0600';
 our $CURRENTOBJ;
 
 our $START;
 
 #######################################
+our $LAST_OFF;
 BEGIN {
     *SE_NAMESPACE = \&POE::Session::SE_NAMESPACE;
     *SE_OPTIONS   = \&POE::Session::SE_OPTIONS;
     *SE_STATES    = \&POE::Session::SE_STATES;
+
+    ## +1 and +2 used by PlainCall
+    if( POE::Session->can( 'SE_ID' ) ) {
+        # POE 1.300 + 
+        *SE_ID       = \&POE::Session::SE_ID;
+        eval '
+        *SE_OBJECTS  = sub () { POE::Session::SE_ID+3 };
+        *SE_STATERE  = sub () { POE::Session::SE_ID+4 };
+        *SE_ISAPLAIN = sub () { POE::Session::SE_ID+5 };
+        ';
+    }
+    else {
+        # POE 1.299- 
+        *SE_OBJECTS  = sub () { POE::Session::SE_STATES+3 };
+        *SE_STATERE  = sub () { POE::Session::SE_STATES+4 };
+        *SE_ISAPLAIN = sub () { POE::Session::SE_STATES+5 };
+    }
 
     *EN_SIGNAL    = \&POE::Session::EN_SIGNAL;
     *EN_DEFAULT   = \&POE::Session::EN_DEFAULT;
@@ -36,11 +54,6 @@ BEGIN {
     *OPT_DEBUG    = \&POE::Session::OPT_DEBUG;
     *OPT_DEFAULT  = \&POE::Session::OPT_DEFAULT;
 }
-
-## +1 and +2 used by PlainCall
-sub SE_OBJECTS () { SE_STATES+3 }
-sub SE_STATERE () { SE_STATES+4 }
-sub SE_ISAPLAIN () { SE_STATES+5 }
 
 sub OH_OBJECT () { 0 }
 sub OH_NAME   () { 1 }
@@ -917,7 +930,7 @@ Philip Gwyn, E<lt>gwyn-at-cpan.orgE<gt>
 
 =head1 COPYRIGHT AND LICENSE
 
-Copyright (C) 2009,2010 by Philip Gwyn
+Copyright (C) 2009,2010,2011 by Philip Gwyn
 
 This library is free software; you can redistribute it and/or modify
 it under the same terms as Perl itself, either Perl version 5.8.8 or,
